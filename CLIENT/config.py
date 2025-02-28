@@ -19,7 +19,7 @@ CLIENT_ID = str(uuid.uuid4())
 
 #銃関連
 FIRE_RATE = 0.1
-RELOAD_DURATION = 3.0
+RELOAD_DURATION = 3.0 #リロード機能内から意味ない.いつか追加
 
 #プレイヤー
 PLAYER_MAX_HP = 100
