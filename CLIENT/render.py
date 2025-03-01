@@ -1,5 +1,4 @@
 from OpenGL.GL import *
-
 from OpenGL.GLU import *
 import pygame
 import math
@@ -23,32 +22,43 @@ cube_surfaces = (
     (4,0,3,6)
 )
 
-def create_cube_display_list(color=(0.8, 0.5, 0.2)):
-    dl = glGenLists(1)
-    glNewList(dl, GL_COMPILE)
-    glBegin(GL_QUADS)
-    glColor3fv(color)
-    for surface in cube_surfaces:
-        for vertex in surface:
-            glVertex3fv(cube_vertices[vertex])
-    glEnd()
-    glColor3f(0.0, 0.0, 0.0)
-    glBegin(GL_LINES)
-    for surface in cube_surfaces:
-        for i in range(len(surface)):
-            glVertex3fv(cube_vertices[surface[i]])
-            glVertex3fv(cube_vertices[surface[(i+1)%len(surface)]])
-    glEnd()
-    glEndList()
-    return dl
-
 def draw_cube_at(position, display_list, size=1.0):
     glPushMatrix()
     glTranslatef(position[0], position[1], position[2])
     glScalef(size/2.0, size/2.0, size/2.0)
     glCallList(display_list)
     glPopMatrix()
+
+def create_merged_blocks_display_list(block_positions, size=1.0, color=(0.8, 0.5, 0.2)):
+
+    dl = glGenLists(1)
+    glNewList(dl, GL_COMPILE)
+
+    for pos in block_positions:
+        glPushMatrix()
+        glTranslatef(pos[0], pos[1], pos[2])
+        glScalef(size/2.0, size/2.0, size/2.0)
+
+        glBegin(GL_QUADS)
+        glColor3fv(color)
+        for surface in cube_surfaces:
+            for vertex in surface:
+                glVertex3fv(cube_vertices[vertex])
+        glEnd()
+
+        glColor3f(0.0, 0.0, 0.0)
+        glBegin(GL_LINES)
+        for surface in cube_surfaces:
+            for i in range(len(surface)):
+                glVertex3fv(cube_vertices[surface[i]])
+                glVertex3fv(cube_vertices[surface[(i+1)%len(surface)]])
+        glEnd()
+        
+        glPopMatrix()
     
+    glEndList()
+    return dl
+
 def draw_human_figure(position, yaw, color=(0.0, 1.0, 0.0)):
     glPushMatrix()
     glTranslatef(position[0], position[1], position[2])
@@ -75,19 +85,15 @@ def draw_human_figure(position, yaw, color=(0.0, 1.0, 0.0)):
     glEnd()
 
     glBegin(GL_LINES)
-
     glVertex3f(0, 1.55, 0)
     glVertex3f(-0.5, 1.3, 0)
-
     glVertex3f(0, 1.55, 0)
     glVertex3f(0.5, 1.3, 0)
     glEnd()
 
     glBegin(GL_LINES)
-
     glVertex3f(0, 1.0, 0)
     glVertex3f(-0.3, 0.0, 0)
-
     glVertex3f(0, 1.0, 0)
     glVertex3f(0.3, 0.0, 0)
     glEnd()
@@ -102,12 +108,12 @@ def draw_human_figure(position, yaw, color=(0.0, 1.0, 0.0)):
     glVertex3f(0, 1.3, 0.6)
     glVertex3f(-0.1, 1.3, 0.5)
     glEnd()
-    
+
     glPopMatrix()
+
 def draw_fov_indicator(camera_pos, camera_yaw):
     glPushMatrix() 
     glColor3f(1.0, 1.0, 0.0) 
-
     try:
         glBegin(GL_LINE_STRIP) 
         for angle in range(-10, 11, 2): 
@@ -116,9 +122,8 @@ def draw_fov_indicator(camera_pos, camera_yaw):
             z = camera_pos[2] - math.cos(rad) * 5
             glVertex3f(x, camera_pos[1], z)
         glEnd()
-    except OpenGL.error.GLError as e:
+    except Exception as e:
         print(f"OpenGL Error in draw_fov_indicator: {e}")
-
     glPopMatrix()
 
 def draw_text(x, y, text, font, color=(255,255,255)):
