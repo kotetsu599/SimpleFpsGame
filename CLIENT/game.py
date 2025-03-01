@@ -4,7 +4,7 @@ from OpenGL.GL import *
 from OpenGL.GLU import *
 import math, time
 from config import *
-from utils import distance, lerp, spawn, colliding,colliding
+from utils import distance, lerp, spawn, colliding, bullet_colliding
 from network import NetworkManager
 import render
 
@@ -18,7 +18,7 @@ def update_remote_players(network_manager, t=0.07):
 
 def main():
     pygame.init()
-    display = (1920, 1080)
+    display = (1920,1080)
     screen = pygame.display.set_mode(display, DOUBLEBUF | OPENGL)
     hud_font = pygame.font.SysFont("Arial", 18)
     
@@ -32,37 +32,150 @@ def main():
     pygame.event.set_grab(True)
 
     building_blocks = []
-    center_of_wall = ROOF_SIZE // 2
+    center_of_wall = HOUSE_ROOF_SIZE // 2
     entrance_positions = []
-    for x in range(ENTRANCE_WIDTH):
-        for y in range(ENTRANCE_HEIGHT):
-            pos = (x + center_of_wall - ENTRANCE_WIDTH // 2, y + 1, 0)
+    for x in range(HOUSE_ENTRANCE_WIDTH):
+        for y in range(HOUSE_ENTRANCE_HEIGHT):
+            pos = (x + center_of_wall - HOUSE_ENTRANCE_WIDTH // 2, y + 1, 0)
             entrance_positions.append(pos)
 
-    for x in range(ROOF_SIZE):
-        for z in range(ROOF_SIZE):
-            pos = (x, WALL_HEIGHT + 1, z)
+    for x in range(HOUSE_ROOF_SIZE):
+        for z in range(HOUSE_ROOF_SIZE):
+            pos = (x, HOUSE_WALL_HEIGHT + 1, z)
             building_blocks.append(pos)
 
-    for y_level in range(WALL_HEIGHT):
-        for x in range(ROOF_SIZE):
-            for z in range(ROOF_SIZE):
-                if x == 0 or z == ROOF_SIZE - 1 or x == ROOF_SIZE - 1 or z == 0:
+    for y_level in range(0,HOUSE_WALL_HEIGHT+1):
+        for x in range(HOUSE_ROOF_SIZE):
+            for z in range(HOUSE_ROOF_SIZE):
+                if x == 0 or z == HOUSE_ROOF_SIZE - 1 or x == HOUSE_ROOF_SIZE - 1 or z == 0:
                     pos = (x, y_level + 1, z)
                     if pos not in entrance_positions:
                         building_blocks.append(pos)
 
-    cube_dl = render.create_cube_display_list()
+
+    for y in range(1, HOUSE_WALL_HEIGHT + 1):
+        for z in range(HOUSE_ROOF_SIZE):
+
+            if z != HOUSE_ROOF_SIZE // 2 or y > HOUSE_ENTRANCE_HEIGHT:
+                pos = (HOUSE_ROOF_SIZE // 2, y, z)
+                building_blocks.append(pos)
+
+    #塔
+    entrance_positions = []
+    center_of_wall = TOWER_ROOF_SIZE//2
+    for x in range(TOWER_ENTRANCE_WIDTH):
+        for y in range(TOWER_ENTRANCE_HEIGHT):
+            pos = (x+center_of_wall - TOWER_ENTRANCE_WIDTH//2+25,y+1,25)
+            entrance_positions.append(pos)
+
+
+    for x in range(TOWER_ROOF_SIZE):
+        for z in range(TOWER_ROOF_SIZE):
+            for y in range(TOWER_WALL_HEIGHT):
+                if x == 0 or x == TOWER_ROOF_SIZE -1 or z == 0 or z == TOWER_ROOF_SIZE -1:
+                    pos = (x+25,y,z+25)
+                    if pos not in entrance_positions:
+                        building_blocks.append(pos)
+
+    #螺旋階段
+    direction = 1 #0:左 1:上 2:右 3:下
+    last_pos = [TOWER_ROOF_SIZE-2+25,-1,25]#x y z
+    building = True
+
+    exit_pos = []
+
+    while building:
+        if last_pos[1] == TOWER_WALL_HEIGHT-2:
+            building = False
+            break
+
+        last_pos[1] +=1
+        if direction == 0:
+            pos = last_pos
+            pos[0]+=1
+            if not pos[0] == 25+TOWER_ROOF_SIZE-1:
+                last_pos = pos
+                pos = tuple(pos)
+                building_blocks.append(pos)
+            else:
+
+                pos[0]-=1
+                direction =1
+                last_pos[1]-=1
+
+        elif direction == 1:
+            pos = last_pos
+            pos[2]+=1
+            if not pos[2] == 25+TOWER_ROOF_SIZE-1:
+                last_pos = pos
+                pos = tuple(pos)
+                building_blocks.append(pos)
+            else:
+                direction =2
+                pos[2]-=1
+                last_pos[1]-=1
+
+        elif direction == 2:
+
+            pos = last_pos
+            pos[0]-=1
+            if not pos[0] == 25:
+ 
+                last_pos = pos
+                pos=tuple(pos)
+            
+                building_blocks.append(pos)
+            else:
+                pos[0]+=1
+                direction =3
+                last_pos[1]-=1
+
+        elif direction == 3:
+            pos = last_pos
+            pos[2]-=1
+            if not pos[2] == 25:
+                last_pos = pos
+                pos = tuple(pos)
+                building_blocks.append(pos)
+            else:
+                pos[2]+=1
+                direction =0
+                last_pos[1]-=1
+
+    exit_pos = []
+    if direction == 0:
+        for i in range(-8, 1):
+            exit_pos.append((last_pos[0] + i, last_pos[1], last_pos[2]))
+    elif direction == 1:
+        for i in range(-8, 1):
+            exit_pos.append((last_pos[0], last_pos[1], last_pos[2] + i))
+    elif direction == 2:
+        for i in range(-1, 8):
+            exit_pos.append((last_pos[0] + i, last_pos[1], last_pos[2]))
+    elif direction == 3:
+        for i in range(-1, 8):
+            exit_pos.append((last_pos[0], last_pos[1], last_pos[2] + i))
+
+    for x in range(TOWER_ROOF_SIZE):
+        for z in range(TOWER_ROOF_SIZE):
+            pos = (x+25,TOWER_WALL_HEIGHT-2,z+25)
+            if pos not in exit_pos:
+                building_blocks.append(pos)
+
+    merged_blocks_dl = render.create_merged_blocks_display_list(building_blocks)
+
     clock = pygame.time.Clock()
 
     camera_pos = spawn(building_blocks)
     camera_yaw = 0.0
     camera_pitch = 0.0
     y_velocity = 0.0
-    on_ground = False
+    on_ground = True
 
     network_manager = NetworkManager()
+
     network_manager.start_receiving()
+
     last_shot_time = time.time()
     last_state_send_time = time.time()
 
@@ -70,7 +183,9 @@ def main():
 
     running = True
     while running:
+
         for event in pygame.event.get():
+
             if event.type == QUIT or (event.type == KEYDOWN and event.key == K_ESCAPE):
                 running = False
 
@@ -95,20 +210,27 @@ def main():
             dx += math.cos(yaw_rad) * MOVE_SPEED
             dz += math.sin(yaw_rad) * MOVE_SPEED
 
-        if keys[pygame.K_SPACE]:
+
+        if keys[pygame.K_SPACE] and on_ground:
             y_velocity = JUMP_STRENGTH
             on_ground = False
 
-        if not on_ground:
-            y_velocity += GRAVITY
-            if not colliding(camera_pos[0], camera_pos[1] + y_velocity, camera_pos[2], building_blocks) and (camera_pos[1] + y_velocity) >= 1:
-                camera_pos[1] += y_velocity
-            else:
-                y_velocity = 0
 
-        if camera_pos[1] <= 1.5:
-            camera_pos[1] = 1.5
+        
+        y_velocity += GRAVITY
+        if not colliding(camera_pos[0], camera_pos[1] + y_velocity, camera_pos[2], building_blocks) and (camera_pos[1] + y_velocity) >= 1:
+            camera_pos[1] += y_velocity
+            on_ground = False
+        else:
+            y_velocity = 0
+            on_ground= True
+
+        if camera_pos[1] <= 2.5:
+            camera_pos[1] = 2.5
             on_ground = True
+
+        if camera_pos[1] >= 120:
+            camera_pos[1] = 120
 
         current_time = time.time()
 
@@ -122,7 +244,7 @@ def main():
             bullet = {
                 "pos": camera_pos.copy(),
                 "dir": [camDir_x, camDir_y, camDir_z],
-                "speed": 2,
+                "speed": 1,
                 "spawn_time": current_time,
                 "lifetime": 3.0
             }
@@ -146,7 +268,7 @@ def main():
         if current_time - last_state_send_time > UPDATE_INTERVAL:
             state_msg = {
                 "id": network_manager.client_id,
-                "pos": [camera_pos[0],camera_pos[1]-1,camera_pos[2]],
+                "pos": [camera_pos[0],camera_pos[1]-2,camera_pos[2]],
                 "yaw": camera_yaw,
                 "pitch": camera_pitch,
                 "type": "state"
@@ -164,7 +286,7 @@ def main():
             hit_detected = False
             with network_manager.lock:
                 for pid, pdata in network_manager.remote_players.items():
-                    if distance(bullet["pos"], [pdata["pos"][0], pdata["pos"][1] + 1, pdata["pos"][2]]) < 1.2:
+                    if distance(bullet["pos"], [pdata["pos"][0], pdata["pos"][1] + 2, pdata["pos"][2]]) < 1.2:
                         hit_msg = {
                             "id": network_manager.client_id,
                             "type": "hit",
@@ -178,7 +300,7 @@ def main():
             if hit_detected:
                 local_bullets.remove(bullet)
             if bullet in local_bullets:
-                if colliding(bullet_pre_pos[0], bullet_pre_pos[1], bullet_pre_pos[2], building_blocks):
+                if bullet_colliding(bullet_pre_pos[0], bullet_pre_pos[1], bullet_pre_pos[2], building_blocks):
                     local_bullets.remove(bullet)
                     continue
                 bullet["pos"] = bullet_pre_pos
@@ -213,8 +335,7 @@ def main():
         glVertex3f(50, 0, -50)
         glEnd()
 
-        for block in building_blocks:
-            render.draw_cube_at(block, cube_dl)
+        glCallList(merged_blocks_dl)
 
         glPointSize(5)
         glBegin(GL_POINTS)
@@ -237,6 +358,7 @@ def main():
             on_ground = False
         
         render.draw_hud(display, hud_font, network_manager.player_hp)
+
 
 
 
