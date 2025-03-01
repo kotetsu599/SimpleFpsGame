@@ -77,7 +77,7 @@ def main():
                     if pos not in entrance_positions:
                         building_blocks.append(pos)
 
-    #螺旋階段
+    #螺旋階段(塔の形によって変形しますが、大きさによっては出口が生成されないことが...)
     direction = 1 #0:左 1:上 2:右 3:下
     last_pos = [TOWER_ROOF_SIZE-2+25,-1,25]#x y z
     building = True
