@@ -23,10 +23,20 @@ class NetworkManager:
     def _network_receive(self):
         time.sleep(0.5)
         while self.running:
+
+            try:
+                stale = [pid for pid, pdata in self.remote_players.items() 
+                if current_epoch - pdata["last_comm"] > 1.0]
+                for stale_pid in stale:
+                    del self.remote_players[stale_pid]
+            except:
+                pass
+
             try:
                 data, addr = self.udp_sock.recvfrom(4096)
                 msg = json.loads(data.decode())
                 msg_type = msg.get("type", "state")
+                current_epoch = time.time() 
                 if msg_type == "state":
                     pid = msg.get("id")
                     if pid == self.client_id:
@@ -41,18 +51,14 @@ class NetworkManager:
                                 "yaw": new_yaw,
                                 "pitch": new_pitch,
                                 "target_pos": new_pos,
-                                "last_update": time.time()
+                                "last_comm": current_epoch
                             }
                         else:
                             self.remote_players[pid]["target_pos"] = new_pos
                             self.remote_players[pid]["yaw"] = new_yaw
                             self.remote_players[pid]["pitch"] = new_pitch
-                            self.remote_players[pid]["last_update"] = time.time()
+                            self.remote_players[pid]["last_comm"] = current_epoch
 
-                        stale = [pid for pid, pdata in self.remote_players.items() 
-                                 if time.time() - pdata["last_update"] > 1.0]
-                        for stale_pid in stale:
-                            del self.remote_players[stale_pid]
                 elif msg_type == "bullet":
                     if msg.get("id") != self.client_id:
                         with self.lock:
@@ -60,7 +66,7 @@ class NetworkManager:
                                 "pos": msg.get("pos"),
                                 "dir": msg.get("dir"),
                                 "speed": 0.5,
-                                "spawn_time": time.time(),
+                                "spawn_time": current_epoch,
                                 "lifetime": 3.0
                             })
                 elif msg_type == "damage":
