@@ -13,7 +13,19 @@ def colliding(x, y, z, blocks):
     for block in blocks:
         bx, by, bz = block
         if (bx - half <= x <= bx + half) and (bz - half <= z <= bz + half):
-            if (by - 1.5 <= y <= by + 1.5):
+            if (by-0.5 <= y <= by + 2.5):
+                return True
+    if y <=2.5:
+        return True
+
+    return False
+
+def bullet_colliding(x, y, z, blocks):
+    half = 0.5
+    for block in blocks:
+        bx, by, bz = block
+        if (bx - half <= x <= bx + half) and (bz - half <= z <= bz + half):
+            if (by-0.5 <= y <= by + 0.5):
                 return True
     return False
 
@@ -21,7 +33,7 @@ def colliding(x, y, z, blocks):
 def spawn(building_blocks):
     while True:
         x = random.randint(-25, 25)
-        y = 1.5
+        y = 2.6
         z = random.randint(-25, 25)
         if not colliding(x, y, z, building_blocks):
             return [x, y, z]
